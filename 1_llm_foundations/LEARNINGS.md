@@ -68,8 +68,6 @@ while (true) {
     }
 }
 ```
-```
-```
 
 ```typescript
 import { Client, type Message } from "./client.ts";
@@ -105,8 +103,6 @@ export async function conversation(user_query: string) {
 export function updateTemp(temp: number) {
     client.setTemperature(temp);
 }
-```
-```
 ```
 
 ```typescript
