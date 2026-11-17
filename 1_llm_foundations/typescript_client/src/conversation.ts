@@ -15,13 +15,17 @@ export async function conversation(user_query: string) {
         content: user_query
     });
 
-    const result = await client.chat(messages);
-    messages.push({
-        role: "assistant",
-        content: result
-    });
-
-    return result;
+    try {
+        const result = await client.chat(messages);
+        messages.push({
+            role: "assistant",
+            content: result
+        });
+        return result;
+    } catch (error) {
+        messages.pop()
+        throw error;
+    }
 }
 
 export function updateTemp(temp: number) {

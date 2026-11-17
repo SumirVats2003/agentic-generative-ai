@@ -19,6 +19,10 @@ export class Client {
     }
 
     public setTemperature(temp: number) {
+        if (!Number.isFinite(temp) || temp < 0 || temp > 2) {
+            throw new Error("Temperature must be between 0 and 2");
+        }
+
         this.temperature = temp;
     }
 
@@ -34,6 +38,16 @@ export class Client {
                 },
             }
         );
+
+        const content = response.data?.message?.content;
+
+        if (typeof content !== "string") {
+            throw new Error("Invalid response received from Ollama");
+        }
+
+        if (response.status >= 400) {
+            throw new Error("SOMETHING WENT WRONG : " + response.statusText);
+        }
 
         return response.data.message?.content ?? "Some error occured";
     }
