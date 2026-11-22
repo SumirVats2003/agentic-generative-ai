@@ -1,17 +1,17 @@
-export type LineItem = {
-    description?: string,
-    quantity?: number,
-    unitPrice?: number,
-    amount?: number
+export interface LineItem {
+    description: string | null;
+    quantity: number | null;
+    unitPrice: number | null;
+    amount: number | null;
 }
 
-export type Invoice = {
-    vendor?: string,
-    invoiceNumber?: string,
-    invoiceDate?: string,
-    currency?: string,
-    lineItems: LineItem[],
-    subTotal: number,
-    tax: number,
-    total: number
+export interface Invoice {
+    vendor: string | null;
+    invoiceNumber: string | null;
+    invoiceDate: string | null;
+    currency: string | null;
+    lineItems: LineItem[] | null;
+    subTotal: number | null;
+    tax: number | null;
+    total: number | null;
 }

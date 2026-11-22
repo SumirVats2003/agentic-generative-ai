@@ -1,31 +1,58 @@
 import { type JSONSchemaType } from "ajv";
 import { type Invoice } from "../types/invoice.ts";
 
+const nullableString = {
+    anyOf: [{ type: "string" }, { type: "null", nullable: true }],
+} as const;
+
+const nullableNumber = {
+    anyOf: [{ type: "number" }, { type: "null", nullable: true }],
+} as const;
+
 export const schema: JSONSchemaType<Invoice> = {
     type: "object",
     properties: {
-        vendor: { type: "string", nullable: true },
-        invoiceNumber: { type: "string", nullable: true },
-        invoiceDate: { type: "string", nullable: true },
-        currency: { type: "string", nullable: true },
+        vendor: nullableString,
+        invoiceNumber: nullableString,
+        invoiceDate: nullableString,
+        currency: nullableString,
         lineItems: {
-            type: "array",
-            items: {
-                type: "object",
-                properties: {
-                    description: { type: "string", nullable: true },
-                    quantity: { type: "number", nullable: true },
-                    unitPrice: { type: "number", nullable: true },
-                    amount: { type: "number", nullable: true },
+            anyOf: [
+                {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        properties: {
+                            description: nullableString,
+                            quantity: nullableNumber,
+                            unitPrice: nullableNumber,
+                            amount: nullableNumber,
+                        },
+                        required: [
+                            "description",
+                            "quantity",
+                            "unitPrice",
+                            "amount",
+                        ],
+                        additionalProperties: false,
+                    },
                 },
-                required: [],
-                additionalProperties: false
-            }
+                { type: "null", nullable: true },
+            ],
         },
-        subTotal: { type: "number" },
-        tax: { type: "number" },
-        total: { type: "number" },
+        subTotal: nullableNumber,
+        tax: nullableNumber,
+        total: nullableNumber,
     },
-    required: ["lineItems", "subTotal", "tax", "total"],
-    additionalProperties: false
-}
+    required: [
+        "vendor",
+        "invoiceNumber",
+        "invoiceDate",
+        "currency",
+        "lineItems",
+        "subTotal",
+        "tax",
+        "total",
+    ],
+    additionalProperties: false,
+};

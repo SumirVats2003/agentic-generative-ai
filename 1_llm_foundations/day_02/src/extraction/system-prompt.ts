@@ -9,6 +9,7 @@ Extract only information explicitly supported by the invoice. Do not infer missi
 
 ### Required Output format:
 Given below is the required output JSON schema. Always stick to this schema.
+Return an object which is of the type Invoice shown above. Reply back with only the JSON. IMPORTANT : DO NOT ADD additional text or markdown formatting.
 
 export type LineItem = {
     description?: string,
@@ -20,15 +21,13 @@ export type LineItem = {
 export type Invoice = {
     vendor?: string,
     invoiceNumber?: string,
-    invoiceDate: string,
-    currency: string,
+    invoiceDate?: string,
+    currency?: string,
     lineItems: LineItem[],
     subTotal: number,
     tax: number,
     total: number
 }
-
-Return an object which is of the type Invoice shown above.
 
 ### Examples
 

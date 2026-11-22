@@ -6,45 +6,60 @@ import { schema } from "./schema.ts";
 
 export class Extractor {
     private client = new Client("gemma:2b", 0.2);
-    private messages: Message[] = [{ role: "system", content: SYSTEM_PROMPT }];
-    private validator = (new Ajv()).compile(schema);
+    private validator = new Ajv().compile(schema);
+    private RETRY_COUNT = 2;
 
     public async extract(invoiceText: string): Promise<Invoice> {
-        try {
-            const invoiceJSON = await this.buildJSONInvoice(invoiceText);
+        let extractionPromptPrefix =
+            "Given below is an Invoice in raw text. Extract it into canonical invoice schema.";
+        let retryCounter = this.RETRY_COUNT;
+        let isRetry = false;
 
-            if (this.validator(invoiceJSON)) {
-                return invoiceJSON as Invoice;
-            } else {
-                const errors = this.validator.errors?.reduce((err, i) => (i + err + "\n"), "");
-                const retryMessage =
-                    `There are the following errors in the parsed JSON : ${errors}. Correct these and regenerate the correct JSON output.`
-                const correctedJson = this.buildJSONInvoice(retryMessage);
+        while (!isRetry || retryCounter != 0) {
+            const extractionQuery = `
+                    ${extractionPromptPrefix}
+                    ${invoiceText}
+                `;
+            try {
+                const invoiceJSON =
+                    await this.buildJSONInvoice(extractionQuery);
 
-                if (this.validator(correctedJson)) {
-                    return correctedJson as Invoice;
+                if (this.validator(invoiceJSON)) {
+                    return invoiceJSON;
                 } else {
-                    throw new Error("Error while creating json")
+                    const errors = this.validator.errors
+                        ?.map(
+                            (error) =>
+                                `${error.instancePath}: ${error.message}`,
+                        )
+                        .join("\n");
+                    extractionPromptPrefix = `
+                        The previous trial on generating JSON invoice ran into an error :\n${errors}.
+                        Correct the errors and regenerate the correct JSON output for the given invoice text.
+                    `;
+                    if (isRetry) retryCounter--;
+                    isRetry = true;
                 }
+            } catch (error) {
+                extractionPromptPrefix = `
+                    The previous trial on generating JSON invoice ran into an error :\n${error}.
+                    Correct the errors and regenerate the correct JSON output for the given invoice text.
+                `;
+                if (isRetry) retryCounter--;
+                isRetry = true;
             }
-        } catch (error) {
-            throw error;
         }
+        throw new Error("Couldn't succeed parsing Invoice as JSON");
     }
 
-    private async buildJSONInvoice(invoiceText: string) {
-        const message = this.buildExtractionMessage(invoiceText);
-        this.messages.push(message);
-        const result = await this.client.chat(this.messages);
-        const invoiceJSON = JSON.parse(result);
+    private async buildJSONInvoice(extractionPrompt: string): Promise<Invoice> {
+        const messages: Message[] = [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: extractionPrompt },
+        ];
+        const result = await this.client.chat(messages);
+        console.log(result);
+        const invoiceJSON = JSON.parse(result) as Invoice;
         return invoiceJSON;
-    }
-
-    private buildExtractionMessage(invoiceText: string): Message {
-        const extractionQuery = `${invoiceText}`;
-        return {
-            role: "user",
-            content: extractionQuery
-        }
     }
 }

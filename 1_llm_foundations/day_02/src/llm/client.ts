@@ -37,6 +37,6 @@ export class Client {
             throw new Error("Invalid response received from Ollama");
         }
 
-        return response.data.message?.content ?? "Some error occured";
+        return response.data.message?.content ?? "{}";
     }
 }
