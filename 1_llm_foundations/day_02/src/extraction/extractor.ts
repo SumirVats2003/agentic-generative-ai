@@ -10,46 +10,56 @@ export class Extractor {
     private RETRY_COUNT = 2;
 
     public async extract(invoiceText: string): Promise<Invoice> {
-        let extractionPromptPrefix =
-            "Given below is an Invoice in raw text. Extract it into canonical invoice schema.";
-        let retryCounter = this.RETRY_COUNT;
-        let isRetry = false;
+        let retryContext = "";
+        let lastError: unknown;
 
-        while (!isRetry || retryCounter != 0) {
+        for (let attempt = 0; attempt <= this.RETRY_COUNT; attempt++) {
             const extractionQuery = `
-                    ${extractionPromptPrefix}
-                    ${invoiceText}
-                `;
+                Extract the invoice below into the canonical invoice schema.
+
+                ${retryContext}
+
+                INVOICE INPUT:
+                ${invoiceText}
+            `;
+
             try {
                 const invoiceJSON =
                     await this.buildJSONInvoice(extractionQuery);
 
                 if (this.validator(invoiceJSON)) {
                     return invoiceJSON;
-                } else {
-                    const errors = this.validator.errors
-                        ?.map(
-                            (error) =>
-                                `${error.instancePath}: ${error.message}`,
-                        )
-                        .join("\n");
-                    extractionPromptPrefix = `
-                        The previous trial on generating JSON invoice ran into an error :\n${errors}.
-                        Correct the errors and regenerate the correct JSON output for the given invoice text.
-                    `;
-                    if (isRetry) retryCounter--;
-                    isRetry = true;
                 }
-            } catch (error) {
-                extractionPromptPrefix = `
-                    The previous trial on generating JSON invoice ran into an error :\n${error}.
-                    Correct the errors and regenerate the correct JSON output for the given invoice text.
+
+                const errors = this.validator.errors
+                    ?.map((error) => `${error.instancePath}: ${error.message}`)
+                    .join("\n");
+
+                lastError = new Error(errors ?? "Schema validation failed");
+
+                retryContext = `
+                    Your previous response failed schema validation.
+                    Validation errors:
+                    ${errors}
+
+                    Generate a corrected JSON response.
                 `;
-                if (isRetry) retryCounter--;
-                isRetry = true;
+            } catch (error) {
+                lastError = error;
+
+                retryContext = `
+                    Your previous response could not be processed.
+                    Error:
+                    ${String(error)}
+
+                    Generate a corrected JSON response.
+                `;
             }
         }
-        throw new Error("Couldn't succeed parsing Invoice as JSON");
+
+        throw new Error("Invoice extraction failed after all attempts", {
+            cause: lastError,
+        });
     }
 
     private async buildJSONInvoice(extractionPrompt: string): Promise<Invoice> {
@@ -57,9 +67,9 @@ export class Extractor {
             { role: "system", content: SYSTEM_PROMPT },
             { role: "user", content: extractionPrompt },
         ];
+
         const result = await this.client.chat(messages);
-        console.log(result);
-        const invoiceJSON = JSON.parse(result) as Invoice;
-        return invoiceJSON;
+
+        return JSON.parse(result) as Invoice;
     }
 }
